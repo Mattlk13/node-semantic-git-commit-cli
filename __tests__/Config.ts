@@ -1,14 +1,13 @@
-import test from 'ava';
 import fs from 'fs-extra';
-import json from 'json-extra';
+import * as json from 'json-extra';
 import os from 'os';
 import path from 'path';
 
-import getConfig from '../lib/getConfig';
+import Config from '../lib/Config';
 
 const cwd = process.cwd();
 const homedir = os.homedir();
-const fixtures = path.join(cwd, 'test', 'fixtures');
+const fixtures = path.join(cwd, '__tests__', 'fixtures');
 const date = new Date();
 const datetime = date.toISOString().slice(0, 10);
 const randomString = Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 4);
@@ -16,7 +15,7 @@ const randomString = Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0
 let globalExist = false;
 
 // rename global .sgcrc
-test.before(() => {
+beforeAll(() => {
   // rename global sgcrc
   if (fs.existsSync(path.join(homedir, '.sgcrc'))) {
     globalExist = true;
@@ -27,7 +26,7 @@ test.before(() => {
   fs.renameSync(path.join(cwd, '.sgcrc'), path.join(cwd, '.sgcrc_default'));
 });
 
-test.after.always(() => {
+afterAll(() => {
   // rename global sgrc
   if (globalExist) {
     fs.renameSync(path.join(homedir, `.sgcrc.${randomString}-${datetime}.back`), path.join(homedir, '.sgcrc'));
@@ -37,17 +36,17 @@ test.after.always(() => {
   fs.renameSync(path.join(cwd, '.sgcrc_default'), path.join(cwd, '.sgcrc'));
 });
 
-test('read config from a specific path', (t) => {
-  t.deepEqual(getConfig(fixtures), json.readToObjSync(path.join(fixtures, '.sgcrc')));
+it('read config from a specific path', () => {
+  expect(new Config(fixtures).config).toEqual(json.readToObjSync(path.join(fixtures, '.sgcrc')));
 });
 
-test('read config from a .sgcrc_default', (t) => {
+it('read config from a .sgcrc_default', () => {
   const globalConfig = json.readToObjSync(path.join(cwd, '.sgcrc_default'));
 
-  t.deepEqual(getConfig(), globalConfig);
+  expect(new Config().config).toEqual(globalConfig);
 });
 
-test('read config from package.json', (t) => {
+it('read config from package.json', () => {
   const sgcrc = json.readToObjSync(path.join(fixtures, '.sgcrc'));
   const packageJson = json.readToObjSync(path.join(cwd, 'package.json'));
 
@@ -57,42 +56,42 @@ test('read config from package.json', (t) => {
   fs.renameSync(path.join(cwd, 'package.json'), path.join(cwd, `package.json.${randomString}-${datetime}.back`));
   fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify(packageJson));
 
-  const config = getConfig();
+  const { config } = new Config();
 
   // revert local package
   fs.removeSync(path.join(cwd, 'package.json'));
   fs.renameSync(path.join(cwd, `package.json.${randomString}-${datetime}.back`), path.join(cwd, 'package.json'));
 
-  t.deepEqual(config, sgcrc);
+  expect(config).toEqual(sgcrc);
 });
 
-test('read global config', (t) => {
+it('read global config', () => {
   const sgcrc = json.readToObjSync(path.join(fixtures, '.sgcrc'));
 
   fs.writeFileSync(path.join(homedir, '.sgcrc'), JSON.stringify(sgcrc));
-  t.deepEqual(getConfig(), sgcrc);
+  expect(new Config().config).toEqual(sgcrc);
   fs.removeSync(path.join(homedir, '.sgcrc'));
 });
 
-test('read local config from `sgc.config.js`', (t) => {
+it('read local config from `sgc.config.js`', () => {
   const sgcrc = json.readToObjSync(path.join(fixtures, '.sgcrc'));
 
   fs.writeFileSync(path.join(cwd, 'sgc.config.js'), `module.exports = (${JSON.stringify(sgcrc)})`);
-  t.deepEqual(getConfig(), sgcrc);
+  expect(new Config().config).toEqual(sgcrc);
   fs.removeSync(path.join(cwd, 'sgc.config.js'));
 });
 
-test('read global config from `sgc.config.js`', (t) => {
+it('read global config from `sgc.config.js`', () => {
   const sgcrc = json.readToObjSync(path.join(fixtures, '.sgcrc'));
 
   fs.writeFileSync(path.join(homedir, 'sgc.config.js'), `module.exports = (${JSON.stringify(sgcrc)})`);
-  t.deepEqual(getConfig(), sgcrc);
+  expect(new Config().config).toEqual(sgcrc);
   fs.removeSync(path.join(homedir, 'sgc.config.js'));
 });
 
-test('read a .sgcrc_default from a deep nested cwd', (t) => {
+it('read a .sgcrc_default from a deep nested cwd', () => {
   const deepCwd = path.join(fixtures, 'very', 'deep', 'directory');
   const fixturesConfig = json.readToObjSync(path.join(fixtures, '.sgcrc'));
 
-  t.deepEqual(getConfig(deepCwd), fixturesConfig);
+  expect(new Config(deepCwd).config).toEqual(fixturesConfig);
 });
